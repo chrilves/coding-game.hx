@@ -1,0 +1,19 @@
+--dce full
+--class-path src
+--class-path puzzles
+--main CreditCard.hx
+--each
+
+--python build/CreditCard.py
+
+--next
+--lua build/CreditCard.lua
+
+--next
+-D CodingGame
+--js build/CreditCard.js.cg
+-L hxnodejs
+
+--next
+--js build/CreditCard.js
+-L hxnodejs

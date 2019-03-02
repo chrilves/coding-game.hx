@@ -1,0 +1,19 @@
+--dce full
+--class-path src
+--class-path puzzles
+--main Rubik.hx
+--each
+
+--python build/Rubik.py
+
+--next
+--lua build/Rubik.lua
+
+--next
+-D CodingGame
+--js build/Rubik.js.cg
+-L hxnodejs
+
+--next
+--js build/Rubik.js
+-L hxnodejs

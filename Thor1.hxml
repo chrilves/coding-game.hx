@@ -1,0 +1,4 @@
+--class-path src
+--class-path puzzles
+--main Thor1
+--python Thor1.py

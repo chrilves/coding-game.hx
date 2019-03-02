@@ -1,0 +1,19 @@
+--dce full
+--class-path src
+--class-path puzzles
+--main Rugby.hx
+--each
+
+--python build/Rugby.py
+
+--next
+--lua build/Rugby.lua
+
+--next
+-D CodingGame
+--js build/Rugby.js.cg
+-L hxnodejs
+
+--next
+--js build/Rugby.js
+-L hxnodejs

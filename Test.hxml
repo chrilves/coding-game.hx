@@ -1,0 +1,19 @@
+--dce full
+--class-path src
+--class-path puzzles
+--main Test
+--each
+
+--python build/Test.py
+
+--next
+--lua build/Test.lua
+
+--next
+-D CodingGame
+--js build/Test.js.cg
+-L hxnodejs
+
+--next
+--js build/Test.js
+-L hxnodejs
