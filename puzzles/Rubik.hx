@@ -1,10 +1,6 @@
 import List;
 using List.ListOps;
 
-enum Face {
-
-}
-
 final class Rubik {
   public static function rot(r: String, f: String): String
     return switch [r, f] {

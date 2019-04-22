@@ -1,0 +1,19 @@
+--dce full
+--class-path src
+--class-path puzzles
+--main BrickInTheWall
+--each
+
+--python build/BrickInTheWall.py
+
+--next
+--lua build/BrickInTheWall.lua
+
+--next
+-D CodingGame
+--js build/BrickInTheWall.js.cg
+-L hxnodejs
+
+--next
+--js build/BrickInTheWall.js
+-L hxnodejs

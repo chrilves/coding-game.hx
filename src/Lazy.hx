@@ -32,7 +32,7 @@ final class Lazy<A> {
       case Left(t):
         return new Lazy(Left(t.flatMap(a -> switch g(a).value {
           case Left(u): u;
-          case Right(v): Trampoline.Done(v);
+          case Right(v): TrampolineOps.pure(v);
         })));
     }
 
