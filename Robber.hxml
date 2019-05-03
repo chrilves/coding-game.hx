@@ -1,0 +1,19 @@
+--dce full
+--class-path src
+--class-path puzzles
+--main Robber
+--each
+
+--python build/Robber.py
+
+--next
+--lua build/Robber.lua
+
+--next
+-D CodingGame
+--js build/Robber.js.cg
+-L hxnodejs
+
+--next
+--js build/Robber.js
+-L hxnodejs

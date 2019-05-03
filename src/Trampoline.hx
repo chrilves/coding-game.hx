@@ -34,6 +34,12 @@ final class TrampolineOps {
   inline public static function applyT<A,B>(_this: A, f: A -> Trampoline<B>): Trampoline<B>
     return Defer(() -> f(_this));
 
+  inline public static function call2<A,B,C>(_this: (A,B) -> C, a: A, b:B): Trampoline<C>
+    return Defer(() -> Pure(_this(a,b)));
+
+  inline public static function call2T<A,B,C>(_this: (A,B) -> Trampoline<C>, a: A, b: B): Trampoline<C>
+    return Defer(() -> _this(a,b));
+
   inline public static function ap<A,B>(_this: Trampoline<A -> B>, ta: Trampoline<A>): Trampoline<B>
     return switch [_this, ta] {
       case [Pure(f), Pure(a)]: Pure(f(a));

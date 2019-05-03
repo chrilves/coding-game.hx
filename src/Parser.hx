@@ -1,81 +1,67 @@
 import Prelude;
 import haxe.ds.Option;
 import ListF;
+import Trampoline;
 
 using Parser.ParserOps;
 using List.ListOps;
+using ListF.ListFOps;
 using OptionOps;
+using Trampoline.TrampolineOps;
 
-enum Parser<C,A> {
+private enum Parser<C,A> {
+  Pure<C,A>(value: A): Parser<C,A>;
+  Ap<C,A,B>(fun: Parser<C, A -> B>, arg: Parser<C, A>): Parser<C,B>;
+  Flatten<C,A>(parser: Parser<C,Parser<C,A>>): Parser<C,A>;
+
   Get<C>: Parser<C,C>;
   Fail<C,A>: Parser<C,A>;
   Or<C,A>(first: Parser<C,A>, second: Parser<C,A>): Parser<C,A>;
-  Not<C,A>(parser: Parser<C,A>): Parser<C,Unit>;
-  Pure<C,A>(value: A): Parser<C,A>;
-  FlatMap<C,A,B>(parser: Parser<C,A>, f: A -> Parser<C,B>): Parser<C,B>;
 }
 
 final class ParserOps {
-  public static inline function pure<C,A>(a: A): Parser<C,A>
+  public inline static function pure<C,A>(a: A): Parser<C,A>
     return Pure(a);
 
-  public static inline function get<C>(): Parser<C,C>
+  public inline static function get<C>(): Parser<C,C>
     return Get;
 
-  public static function flatMap<C,A,B>(_this: Parser<C,A>, f: A -> Parser<C,B>): Parser<C,B>
-    switch (_this) {
-      case Pure(a):
-        return f(a);
-      case Fail:
-        return Fail;
-      case FlatMap(p, g):
-        return flatMap(p, x -> g(x).flatMap(f));
-      case _:
-        return FlatMap(_this, f);
-    }
-  
-  public static inline function or<C,A>(_this: Parser<C,A>, p: Parser<C,A>): Parser<C,A>
-    switch (_this) {
-      case Pure(a):
-        return _this;
-      case Fail:
-        return p;
-      case Or(f,s):
-        return f.or(s.or(p));
-      case _:
-        return Or(_this, p);
+  public inline static function fail<C,A>(): Parser<C,A>
+    return Fail;
+
+  public static function ap<C,A,B>(pf: Parser<C,A -> B>, pa: Parser<C,A>): Parser<C,B>
+    return switch [pf, pa] {
+      case [Pure(f), Pure(a)]: Pure(f(a));
+      case [Fail, _]: Fail;
+      case [_, Fail]: Fail;
+      case [_,_]: Ap(pf, pa);
     }
 
-  public static inline function map<C,A,B>(_this: Parser<C,A>, f: A -> B): Parser<C,B>
-    return _this.flatMap(a -> Pure(f(a)));
+  public static function or<C,A>(_this: Parser<C,A>, p: Parser<C,A>): Parser<C,A>
+    return switch [_this, p] {
+      case [Fail, _]: p;
+      case [_, Fail]: _this;
+      case [Pure(_),_]: _this;
+      case [_,_]: Or(_this, p);
+    };
+    
+  public static function flatten<C,A>(_this: Parser<C,Parser<C,A>>): Parser<C,A>
+    return switch _this {
+      case Pure(m): m;
+      case Fail: Fail;
+      case _: Flatten(_this);
+    };
 
-  public static inline function ap<C,A,B>(pf: Parser<C,A -> B>, pa: Parser<C,A>): Parser<C,B>
-    switch [pf, pa] {
-      case [Pure(f), Pure(a)]:
-        return Pure(f(a));
-      case [Fail, _]:
-        return Fail;
-      case [_, Fail]:
-        return Fail;
-      case [_,_]:
-        return pf.flatMap(f -> pa.map(f));
-    }
+  public inline static function map<C,A,B>(_this: Parser<C,A>, f: A -> B): Parser<C,B>
+    return ap(pure(f), _this);
+
+  public inline static function flatMap<C,A,B>(_this: Parser<C,A>, f: A -> Parser<C,B>): Parser<C,B>
+    return flatten(ap(pure(f), _this));
   
-  public static inline function not<C,A>(_this: Parser<C,A>): Parser<C,Unit>
-    switch (_this) {
-      case Pure(_):
-        return Fail;
-      case Fail:
-        return Pure(Unit);
-      case Not(v):
-        return v.map(_ -> Unit);
-      case Or(f,s):
-        return f.not().flatMap(_ -> not(s));
-      case _:
-        return Not(_this);
-    }
+  public inline static function not<C,A>(_this: Parser<C,A>): Parser<C,Unit>
+    return or(map(_this, x -> Unit), pure(Unit));
   
-  public static inline function filter<C,A>(_this: Parser<C,A>, p: A -> Bool): Parser<C, A>
+  public inline static function filter<C,A>(_this: Parser<C,A>, p: A -> Bool): Parser<C, A>
     return _this.flatMap(v ->
       if (p(v))
         pure(v)
@@ -123,42 +109,43 @@ final class ParserOps {
   public static inline function ignoreRight<C,A,B>(_this: Parser<C,A>, p: Parser<C,B>): Parser<C,A>
     return flatMap(_this, a -> map(p, _ -> a));
 
-  public static function runStream<C,A>(p: Parser<C,A>, stream: Stream<C>): ListF<A,Stream<C>>
-    switch (p) {
-      case Get:
-        return stream.run();
-      
-      case Pure(a):
-        return Cons(a, stream);
-      
-      case Fail:
-        return Nil;
-      
-      case Not(p2):
-        switch (runStream(p2, stream)) {
-          case Nil:
-            return Cons(Unit, stream);
-          case Cons(_,_):
-            return Nil;
-        }
+  public static function runStream<C,A>(p: Parser<C,A>, stream: Stream<C>): ListF<A,Stream<C>> {
+    
+    function aux<D,X>(p2: Parser<D,X>, str: Stream<D>): Trampoline<ListF<X,Stream<D>>>
+      return switch p2 {
+        case Pure(a):
+          TrampolineOps.pure(Cons(a, str));
 
-      case Or(f,s):
-        switch (runStream(f,stream)) {
-          case Nil:
-            return runStream(s,stream);
-          case v:
-            return v;
-        }
+        case Get:
+          TrampolineOps.pure(str.run());
+        
+        case Fail:
+          TrampolineOps.pure(Nil);
 
-      case FlatMap(p2, f):
-        switch (runStream(p2, stream)) {
-          case Nil:
-            return Nil;
-          case Cons(value, seed):
-            return runStream(f(value), seed);
-        }
-    }
-  
+        case Ap(f,x):
+          aux.call2T(f, str).flatMap(r -> switch r {
+            case Nil:
+              TrampolineOps.pure(Nil);
+            case Cons(hf,tf):
+              aux.call2T(x, tf).map(y -> y.map1(hf));
+          });
+
+        case Or(f,s):
+          aux.call2T(f,str).flatMap(r -> switch  r {
+            case Nil: aux.call2T(s,str);
+            case v  : TrampolineOps.pure(v);
+          });
+
+        case Flatten(x):
+          aux.call2T(x, str).flatMap(r -> switch r {
+            case Nil: TrampolineOps.pure(Nil);
+            case Cons(h,t): aux.call2T(h, t);
+          });
+      };
+
+    return aux(p, stream).run();
+  }
+    
   inline public static function runAsStream<C,A>(p: Parser<C,A>, stream: Stream<C>, f: Stream<C> -> Stream<C>): Stream<A>
     return Stream.unfold(f(stream), s -> ListFOps.map2(runStream(p, s), f));
 }

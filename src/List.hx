@@ -138,6 +138,18 @@ final class ListOps {
     }
   }
 
+  public static function length<A>(l: List<A>): Int {
+    var tmp = l;
+    var acc = 0;
+    while(true) switch tmp {
+      case Nil:
+        return acc;
+      case Cons(_,tl):
+        acc += 1;
+        tmp  = tl;
+    }
+  }
+
   inline public static function pure<A>(a: A): List<A>
     return Cons(a, Nil);
 
@@ -220,6 +232,9 @@ final class ListOps {
   public static inline function toStream<A>(_this: List<A>): Stream<A>
     return Stream.unfold(_this, x -> x);
 
-  inline public static function sum(_this: List<Int>): Int
+  inline public static function sumInt(_this: List<Int>): Int
     return _this.foldLeft(0, (x,y) -> x + y);
+
+  inline public static function sumFloat(_this: List<Float>): Float
+    return _this.foldLeft(0.0, (x,y) -> x + y);
 }
